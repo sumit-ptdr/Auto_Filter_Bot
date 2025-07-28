@@ -13,7 +13,7 @@ from datetime import datetime
 from database.refer import referdb
 from database.config_db import mdb
 from pyrogram import Client, filters, enums
-from pyrogram.errors import FloodWait, ChatAdminRequired
+from pyrogram.errors import FloodWait, ChatAdminRequired, UserNotParticipant
 from pyrogram.types import *
 from database.ia_filterdb import Media, Media2, get_file_details, unpack_new_file_id, get_bad_files
 from database.users_chats_db import db
@@ -86,7 +86,7 @@ async def start(client, message):
                     InlineKeyboardButton('🍁 Update Channel 🍁', url=UPDATE_CHNL_LNK)
                   ]]
         reply_markup = InlineKeyboardMarkup(buttons)
-        await message.reply(script.GSTART_TXT.format(message.from_user.mention if message.from_user else message.chat.title, temp.U_NAME, temp.B_NAME), reply_markup=reply_markup, disable_web_page_preview=True)
+        await message.reply(script.GSTART_TXT.format(message.from_user.mention if message.from_user else message.chat.title), reply_markup=reply_markup, disable_web_page_preview=True)
         await asyncio.sleep(2) 
         if not await db.get_chat(message.chat.id):
             total=await client.get_chat_members_count(message.chat.id)
@@ -104,7 +104,7 @@ async def start(client, message):
                     InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
                 ],[
                     InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch"),
-                    InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info"),
+                    # InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info"),
                 ]]
         reply_markup = InlineKeyboardMarkup(buttons)
         current_time = datetime.now(pytz.timezone(TIMEZONE))
@@ -122,7 +122,7 @@ async def start(client, message):
         await m.delete()        
         await message.reply_photo(
             photo=random.choice(PICS),
-            caption=script.START_TXT.format(message.from_user.mention, gtxt, temp.U_NAME, temp.B_NAME),
+            caption=script.START_TXT.format(message.from_user.mention),
             reply_markup=reply_markup,
             parse_mode=enums.ParseMode.HTML
         )
@@ -136,7 +136,7 @@ async def start(client, message):
                     InlineKeyboardButton(' ᴀʙᴏᴜᴛ 📖', callback_data='about')
                 ],[
                     InlineKeyboardButton('ᴛᴏᴘ sᴇᴀʀᴄʜɪɴɢ ⭐', callback_data="topsearch"),
-                    InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info"),
+                    # InlineKeyboardButton('ᴜᴘɢʀᴀᴅᴇ 🎟', callback_data="premium_info"),
                 ]]
         reply_markup = InlineKeyboardMarkup(buttons)
         current_time = datetime.now(pytz.timezone(TIMEZONE))
@@ -154,7 +154,7 @@ async def start(client, message):
         await m.delete()        
         await message.reply_photo(
             photo=random.choice(PICS),
-            caption=script.START_TXT.format(message.from_user.mention, gtxt, temp.U_NAME, temp.B_NAME),
+            caption=script.START_TXT.format(message.from_user.mention),
             reply_markup=reply_markup,
             parse_mode=enums.ParseMode.HTML
         )
@@ -228,21 +228,17 @@ async def start(client, message):
 
    
     if not await db.has_premium_access(message.from_user.id):
+        btn = []
         try:
-            settings = await get_settings(int(data.split("_", 2)[1]))
-            fsub_channels = settings.get('fsub', AUTH_CHANNELS) if settings else AUTH_CHANNELS
-            btn = []
-            dreamxbotz_btn = await is_subscribed(client, message, fsub_channels)
-            if dreamxbotz_btn:
-                btn.extend(dreamxbotz_btn)
-            dreamxbotz_joined = await is_req_subscribed(client, message)
-            if not dreamxbotz_joined:
-                try:
-                    invite_link_default = await client.create_chat_invite_link(int(AUTH_REQ_CHANNEL), creates_join_request=True)
-                except ChatAdminRequired:
-                    print("⚠️ Please make sure the bot has admin rights in the required channel: AUTH_REQ_CHANNEL 🤧")
-                    return
-                btn.append([InlineKeyboardButton("⛔️ ᴊᴏɪɴ ɴᴏᴡ ⛔️", url=invite_link_default.invite_link)])
+            chat = int(data.split("_", 2)[1])
+            if AUTH_CHANNELS:
+                settings      = await get_settings(chat)
+                fsub_channels = settings.get("fsub", AUTH_CHANNELS) if settings else AUTH_CHANNELS
+                btn += await is_subscribed(client, message.from_user.id, fsub_channels)
+            if AUTH_REQ_CHANNELS:
+                settings        = await get_settings(chat)
+                rqfsub_channels = settings.get("reqfsub", AUTH_REQ_CHANNELS) if settings else AUTH_REQ_CHANNELS
+                btn += await is_req_subscribed(client, message.from_user.id, rqfsub_channels)
             if btn:
                 if len(message.command) > 1 and "_" in message.command[1]:
                     kk, file_id = message.command[1].split("_", 1)
@@ -250,26 +246,24 @@ async def start(client, message):
                         InlineKeyboardButton("♻️ ᴛʀʏ ᴀɢᴀɪɴ ♻️", callback_data=f"checksub#{kk}#{file_id}")
                     ])
                     reply_markup = InlineKeyboardMarkup(btn)
-                    caption = (
-                        f"👋 Hello {message.from_user.mention}\n\n"
-                        "You have not joined all our <b>Updates Channels</b> yet.\n"
-                        "Please click the <b>Join Updates Channels</b> buttons below and ensure that you join <b>all</b> the listed channels.\n"
-                        "After that, please try again.\n\n"
-                        "आपने हमारे <b>सभी Updates Channels</b> को जॉइन नहीं किया है।\n"
-                        "कृपया <b>Join Updates Channels</b> बटन पर क्लिक करें और सुनिश्चित करें कि आपने <b>सभी चैनल्स</b> को जॉइन किया है।\n"
-                        "इसके बाद, कृपया फिर से प्रयास करें।"
-                    )
-                    photo = random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg"
-                    await message.reply_photo(
-                        photo=photo,
-                        caption=caption,
-                        reply_markup=reply_markup,
-                        parse_mode=enums.ParseMode.HTML
-                    )
-                    return
+                caption = (
+                    f"👋 ʜᴇʟʟᴏ {message.from_user.mention}\n\n"
+                    "🛑 ʏᴏᴜ ᴍᴜsᴛ ᴊᴏɪɴ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ.\n"
+                    "👉 ᴊᴏɪɴ ᴀʟʟ ᴛʜᴇ ʙᴇʟᴏᴡ ᴄʜᴀɴɴᴇʟs ᴀɴᴅ ᴛʀʏ ᴀɢᴀɪɴ."
+                )
+                photo = random.choice(FSUB_PICS) if FSUB_PICS else "https://graph.org/file/7478ff3eac37f4329c3d8.jpg"
+                await message.reply_photo(
+                    photo=photo,
+                    caption=caption,
+                    reply_markup=reply_markup,
+                    parse_mode=enums.ParseMode.HTML
+                )
+                return
+
         except Exception as e:
-            await log_error(client, f"Got Error In Force Subscription Function.\n\nError - {repr(e)}")
-            print(f"Error In Fsub :- {repr(e)}")    
+            await log_error(client, f"❗️ Force Sub Error:\n\n{repr(e)}")
+            logger.error(f"❗️ Force Sub Error:\n\n{repr(e)}")
+
 
     
     user_id = m.from_user.id
@@ -382,7 +376,7 @@ async def start(client, message):
 
     user = message.from_user.id
     files_ = await get_file_details(file_id)
-    settings = await get_settings(int(grp_id))        
+    settings = await get_settings(int(grp_id))
     if not files_:
         pre, file_id = ((base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))).decode("ascii")).split("_", 1)
         try:
@@ -423,7 +417,10 @@ async def start(client, message):
                     f_caption=DREAMX_CAPTION.format(file_name= '' if title is None else title, file_size='' if size is None else size, file_caption='')
                 except:
                     return
-            await msg.edit_caption(f_caption)
+            await msg.edit_caption(
+                f_caption,
+                reply_markup=InlineKeyboardMarkup(btn)
+            )
             k = await msg.reply(
                 f"<b><u>❗️❗️❗️IMPORTANT❗️️❗️❗️</u></b>\n\n"
                 f"ᴛʜɪꜱ ᴍᴏᴠɪᴇ ꜰɪʟᴇ/ᴠɪᴅᴇᴏ ᴡɪʟʟ ʙᴇ ᴅᴇʟᴇᴛᴇᴅ ɪɴ <b><u><code>{get_time(DELETE_TIME)}</code></u> 🫥 <i></b>"
@@ -1287,6 +1284,7 @@ async def reset_group_callback(client, callback_query):
         'log': LOG_CHANNEL,
         'is_verify': IS_VERIFY,
         'fsub': AUTH_CHANNELS,
+        'reqfsub': AUTH_REQ_CHANNELS
     }
     current = await get_settings(grp_id)
     if current == defaults:
@@ -1370,9 +1368,9 @@ async def set_fsub(client, message):
             f"ᴜꜱᴇʀ - {mention} ꜱᴇᴛ ᴛʜᴇ ꜰᴏʀᴄᴇ ᴄʜᴀɴɴᴇʟ(ꜱ) ꜰᴏʀ {title}:\n\n"
             f"ꜰꜱᴜʙ ᴄʜᴀɴɴᴇʟ(ꜱ):\n" + '\n'.join(channel_titles)
         )
-        await message.reply_text(f"sᴜᴄᴄᴇssғᴜʟʟʏ sᴇᴛ ғᴏʀᴄᴇ ᴄʜᴀɴɴᴇʟ(ꜱ) ғᴏʀ {title} ᴛᴏ\n\n{channels}")
     except Exception as e:
         err_text = f"⚠️ Error in set_fSub :\n{e}"
+        logger.error(err_text)
         await client.send_message(LOG_API_CHANNEL, err_text)
 
 
@@ -1391,6 +1389,74 @@ async def reset_all_settings(client, message):
             "<b>🚫 An error occurred while resetting group settings.\nPlease try again later.</b>",
             quote=True
         )
+        
+@Client.on_message(filters.command('set_req_fsub')) #update
+async def set_req_fsub(client, message):
+    try:
+        userid = message.from_user.id if message.from_user else None
+        if not userid:
+            return await message.reply("<b>You are Anonymous admin, you can't use this command!</b>")
+
+        if message.chat.type not in [enums.ChatType.GROUP, enums.ChatType.SUPERGROUP]:
+            return await message.reply_text("ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴄᴀɴ ᴏɴʟʏ ʙᴇ ᴜsᴇᴅ ɪɴ ɢʀᴏᴜᴘs")
+
+        grp_id = message.chat.id
+        title = message.chat.title
+
+        if not await is_check_admin(client, grp_id, userid):
+            return await message.reply_text(script.NT_ADMIN_ALRT_TXT)
+
+        args = message.text.split(maxsplit=1)
+        if len(args) < 2:
+            return await message.reply_text(
+                "ᴄᴏᴍᴍᴀɴᴅ ɪɴᴄᴏᴍᴘʟᴇᴛᴇ!\n\n"
+                "ᴄᴀɴ ᴀᴅᴅ ᴍᴜʟᴛɪᴘʟᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs ᴡɪᴛʜ ᴊᴏɪɴ ʀᴇǫᴜᴇsᴛ ᴏɴ.\n"
+                "ᴜsᴀɢᴇ: /sᴇᴛ_ʀᴇǫ_ғsᴜʙ ɪᴅ1 ɪᴅ2 ɪᴅ3"
+            )
+
+        option = args[1].strip()
+        try:
+            req_ids = [int(x) for x in option.split()]
+        except ValueError:
+            return await message.reply_text('ᴍᴀᴋᴇ sᴜʀᴇ ᴀʟʟ ɪᴅs ᴀʀᴇ ɪɴᴛᴇɢᴇʀs.')
+
+        if len(req_ids) > 5:
+            return await message.reply_text("ᴍᴀxɪᴍᴜᴍ 5 ᴄʜᴀɴɴᴇʟs ᴀʟʟᴏᴡᴇᴅ.")
+
+        channels = "ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟs:\n"
+        channel_titles = []
+
+        for id in req_ids:
+            try:
+                chat = await client.get_chat(id)
+            except Exception as e:
+                return await message.reply_text(
+                    f"{id} ɪs ɪɴᴠᴀʟɪᴅ!\nᴍᴀᴋᴇ sᴜʀᴇ ᴛʜɪs ʙᴏᴛ ɪs ᴀᴅᴍɪɴ ɪɴ ᴛʜᴀᴛ ᴄʜᴀɴɴᴇʟ.\n\nError - {e}"
+                )
+
+            if chat.type != enums.ChatType.CHANNEL:
+                return await message.reply_text(f"{id} ɪs ɴᴏᴛ ᴀ ᴄʜᴀɴɴᴇʟ.")
+            channel_titles.append(f"{chat.title} (`{id}`)")
+            channels += f'{chat.title}\n'
+
+        # Save to DB
+        await save_group_settings(grp_id, 'reqfsub', req_ids)
+
+        mention = message.from_user.mention if message.from_user else "Unknown"
+        await message.reply_text(f"sᴜᴄᴄᴇssғᴜʟʟʏ sᴇᴛ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟ(ꜱ) ғᴏʀ {title} ᴛᴏ\n\n{channels}")
+        await client.send_message(
+            LOG_API_CHANNEL,
+            f"#ReqFsub_Channel_Set\n\n"
+            f"ᴜꜱᴇʀ - {mention} ꜱᴇᴛ ᴛʜᴇ ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟ(ꜱ) ꜰᴏʀ {title}:\n\n"
+            f"ʀᴇǫᴜɪʀᴇᴅ ᴄʜᴀɴɴᴇʟ(ꜱ):\n" + '\n'.join(channel_titles)
+        )
+
+
+    except Exception as e:
+        err_text = f"⚠️ Error in set_req_fsub:\n{e}"
+        logger.error(err_text)
+        await client.send_message(LOG_API_CHANNEL, err_text)
+
 
 @Client.on_message(filters.command("reset_group"))
 async def reset_group_command(client, message):
