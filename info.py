@@ -70,7 +70,7 @@ ADMINS = [
 ]  # Replace with the actual admin ID(s) to add
 CHANNELS = [
     int(ch) if id_pattern.search(ch) else ch
-    for ch in environ.get("CHANNELS", "-1002495545224 -1002273962683").split()
+    for ch in environ.get("CHANNELS", "").split()
 ]  # Channel id for auto indexing (make sure bot is admin)
 
 LOG_CHANNEL = int(
@@ -96,10 +96,10 @@ SUPPORT_CHAT = environ.get(
 
 # FORCE_SUB
 auth_req_channels = environ.get(
-    "AUTH_REQ_CHANNELS", "-1002233419443"
+    "AUTH_REQ_CHANNELS", ""
 )  # requst to join Channel for force sub (make sure bot is admin) only for bot ADMINS
 auth_channels = environ.get(
-    "AUTH_CHANNELS", "-1002593253594"
+    "AUTH_CHANNELS", ""
 )  # Channels for force sub (make sure bot is admin)
 
 # ============================
